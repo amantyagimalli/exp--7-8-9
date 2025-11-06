@@ -1,0 +1,263 @@
+🧩 Part A: User Login Using Servlet and HTML Form
+📄 login.html
+html
+Copy code
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Page</title>
+</head>
+<body>
+    <h2>User Login</h2>
+    <form action="LoginServlet" method="post">
+        Username: <input type="text" name="username" required><br><br>
+        Password: <input type="password" name="password" required><br><br>
+        <input type="submit" value="Login">
+    </form>
+</body>
+</html>
+☕ LoginServlet.java
+java
+Copy code
+package com.example.servlets;
+
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+
+public class LoginServlet extends HttpServlet {
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        String username = request.getParameter("username");
+        String password = request.getParameter("password");
+
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+
+        // Hardcoded credentials (can be changed to DB validation)
+        if ("admin".equals(username) && "1234".equals(password)) {
+            out.println("<h2>Welcome, " + username + "!</h2>");
+            out.println("<p>Login successful.</p>");
+        } else {
+            out.println("<h3 style='color:red;'>Invalid Username or Password!</h3>");
+            out.println("<a href='login.html'>Try Again</a>");
+        }
+    }
+}
+🧩 Part B: Display Employee Records Using Servlet + JDBC
+📄 employees.html
+html
+Copy code
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Employee Records</title>
+</head>
+<body>
+    <h2>Search Employee</h2>
+    <form action="EmployeeServlet" method="get">
+        Enter Employee ID: <input type="text" name="empid">
+        <input type="submit" value="Search">
+    </form>
+
+    <hr>
+    <h2>All Employees</h2>
+    <a href="EmployeeServlet">View All</a>
+</body>
+</html>
+☕ EmployeeServlet.java
+java
+Copy code
+package com.example.servlets;
+
+import java.io.*;
+import java.sql.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+import com.example.utils.DBUtil;
+
+public class EmployeeServlet extends HttpServlet {
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        String empidParam = request.getParameter("empid");
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+
+        try (Connection con = DBUtil.getConnection()) {
+            Statement st;
+            ResultSet rs;
+
+            if (empidParam != null && !empidParam.isEmpty()) {
+                int empid = Integer.parseInt(empidParam);
+                String query = "SELECT * FROM Employee WHERE EmpID = " + empid;
+                st = con.createStatement();
+                rs = st.executeQuery(query);
+
+                if (!rs.next()) {
+                    out.println("<h3>No Employee Found!</h3>");
+                } else {
+                    out.println("<h2>Employee Details</h2>");
+                    out.println("<table border='1'><tr><th>EmpID</th><th>Name</th><th>Salary</th></tr>");
+                    out.println("<tr><td>" + rs.getInt("EmpID") + "</td><td>" +
+                                rs.getString("Name") + "</td><td>" + rs.getDouble("Salary") + "</td></tr>");
+                    out.println("</table>");
+                }
+            } else {
+                st = con.createStatement();
+                rs = st.executeQuery("SELECT * FROM Employee");
+
+                out.println("<h2>All Employees</h2>");
+                out.println("<table border='1'><tr><th>EmpID</th><th>Name</th><th>Salary</th></tr>");
+                while (rs.next()) {
+                    out.println("<tr><td>" + rs.getInt("EmpID") + "</td><td>" +
+                                rs.getString("Name") + "</td><td>" + rs.getDouble("Salary") + "</td></tr>");
+                }
+                out.println("</table>");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace(out);
+        }
+    }
+}
+🧩 Part C: Student Attendance Portal Using JSP + Servlet
+📄 attendance.jsp
+jsp
+Copy code
+<%@ page language="java" contentType="text/html; charset=UTF-8" %>
+<html>
+<head><title>Student Attendance</title></head>
+<body>
+<h2>Mark Attendance</h2>
+<form action="AttendanceServlet" method="post">
+    Student ID: <input type="text" name="studentID" required><br><br>
+    Date: <input type="date" name="date" required><br><br>
+    Status:
+    <select name="status" required>
+        <option value="Present">Present</option>
+        <option value="Absent">Absent</option>
+    </select><br><br>
+    <input type="submit" value="Submit Attendance">
+</form>
+</body>
+</html>
+☕ AttendanceServlet.java
+java
+Copy code
+package com.example.servlets;
+
+import java.io.*;
+import java.sql.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+import com.example.utils.DBUtil;
+
+public class AttendanceServlet extends HttpServlet {
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int studentID = Integer.parseInt(request.getParameter("studentID"));
+        String date = request.getParameter("date");
+        String status = request.getParameter("status");
+
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+
+        try (Connection con = DBUtil.getConnection()) {
+            String sql = "INSERT INTO Attendance (StudentID, Date, Status) VALUES (?, ?, ?)";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, studentID);
+            ps.setString(2, date);
+            ps.setString(3, status);
+
+            int rows = ps.executeUpdate();
+
+            if (rows > 0) {
+                out.println("<h3>✅ Attendance marked successfully!</h3>");
+            } else {
+                out.println("<h3 style='color:red;'>❌ Failed to mark attendance.</h3>");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace(out);
+        }
+    }
+}
+⚙️ DBUtil.java — Common JDBC Utility
+java
+Copy code
+package com.example.utils;
+
+import java.sql.*;
+
+public class DBUtil {
+    private static final String URL = "jdbc:mysql://localhost:3306/testdb";
+    private static final String USER = "root";
+    private static final String PASS = "root";
+
+    public static Connection getConnection() throws Exception {
+        Class.forName("com.mysql.cj.jdbc.Driver");
+        return DriverManager.getConnection(URL, USER, PASS);
+    }
+}
+🧾 web.xml — Servlet Configuration
+xml
+Copy code
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://jakarta.ee/xml/ns/jakartaee 
+                             http://jakarta.ee/xml/ns/jakartaee/web-app_5_0.xsd"
+         version="5.0">
+
+    <servlet>
+        <servlet-name>LoginServlet</servlet-name>
+        <servlet-class>com.example.servlets.LoginServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>LoginServlet</servlet-name>
+        <url-pattern>/LoginServlet</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>EmployeeServlet</servlet-name>
+        <servlet-class>com.example.servlets.EmployeeServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>EmployeeServlet</servlet-name>
+        <url-pattern>/EmployeeServlet</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>AttendanceServlet</servlet-name>
+        <servlet-class>com.example.servlets.AttendanceServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>AttendanceServlet</servlet-name>
+        <url-pattern>/AttendanceServlet</url-pattern>
+    </servlet-mapping>
+</web-app>
+🗃️ database.sql — MySQL Setup
+sql
+Copy code
+CREATE DATABASE testdb;
+USE testdb;
+
+CREATE TABLE Employee (
+  EmpID INT PRIMARY KEY,
+  Name VARCHAR(50),
+  Salary DOUBLE
+);
+
+INSERT INTO Employee VALUES (1, 'Alice', 50000), (2, 'Bob', 55000), (3, 'Charlie', 60000);
+
+CREATE TABLE Attendance (
+  StudentID INT,
+  Date DATE,
+  Status VARCHAR(20)
+);
