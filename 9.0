@@ -1,0 +1,316 @@
+Part A — Dependency Injection Using Java-Based Spring Configuration
+☕ Course.java
+java
+Copy code
+package com.example.di;
+
+public class Course {
+    private String courseName;
+
+    public Course(String courseName) {
+        this.courseName = courseName;
+    }
+
+    public void showCourse() {
+        System.out.println("Course: " + courseName);
+    }
+}
+☕ Student.java
+java
+Copy code
+package com.example.di;
+
+public class Student {
+    private Course course;
+
+    public Student(Course course) {
+        this.course = course;
+    }
+
+    public void displayInfo() {
+        System.out.println("Student is enrolled in:");
+        course.showCourse();
+    }
+}
+☕ AppConfig.java
+java
+Copy code
+package com.example.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import com.example.di.Course;
+import com.example.di.Student;
+
+@Configuration
+public class AppConfig {
+
+    @Bean
+    public Course course() {
+        return new Course("Spring Framework with DI");
+    }
+
+    @Bean
+    public Student student() {
+        return new Student(course());
+    }
+}
+☕ DIApp.java
+java
+Copy code
+package com.example.di;
+
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import com.example.config.AppConfig;
+
+public class DIApp {
+    public static void main(String[] args) {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(AppConfig.class);
+        Student student = context.getBean(Student.class);
+        student.displayInfo();
+        context.close();
+    }
+}
+🧩 Part B — Hibernate CRUD Application for Student Entity
+☕ StudentEntity.java
+java
+Copy code
+package com.example.hibernate;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "student")
+public class StudentEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private int id;
+
+    private String name;
+    private String department;
+    private int marks;
+
+    public StudentEntity() {}
+
+    public StudentEntity(String name, String department, int marks) {
+        this.name = name;
+        this.department = department;
+        this.marks = marks;
+    }
+
+    // Getters and Setters
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public String getDepartment() { return department; }
+    public void setDepartment(String department) { this.department = department; }
+    public int getMarks() { return marks; }
+    public void setMarks(int marks) { this.marks = marks; }
+}
+☕ HibernateUtil.java
+java
+Copy code
+package com.example.hibernate;
+
+import org.hibernate.SessionFactory;
+import org.hibernate.cfg.Configuration;
+
+public class HibernateUtil {
+    private static SessionFactory factory;
+
+    static {
+        try {
+            factory = new Configuration().configure("hibernate.cfg.xml")
+                    .addAnnotatedClass(StudentEntity.class)
+                    .buildSessionFactory();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static SessionFactory getSessionFactory() {
+        return factory;
+    }
+}
+☕ StudentCRUD.java
+java
+Copy code
+package com.example.hibernate;
+
+import org.hibernate.*;
+import java.util.*;
+
+public class StudentCRUD {
+    public static void main(String[] args) {
+        SessionFactory factory = HibernateUtil.getSessionFactory();
+        Session session = factory.openSession();
+        Scanner sc = new Scanner(System.in);
+
+        while (true) {
+            System.out.println("\n1. Add  2. Read  3. Update  4. Delete  5. Exit");
+            int choice = sc.nextInt();
+            Transaction tx = null;
+
+            try {
+                tx = session.beginTransaction();
+                switch (choice) {
+                    case 1:
+                        System.out.print("Enter Name: ");
+                        String name = sc.next();
+                        System.out.print("Enter Dept: ");
+                        String dept = sc.next();
+                        System.out.print("Enter Marks: ");
+                        int marks = sc.nextInt();
+                        session.persist(new StudentEntity(name, dept, marks));
+                        break;
+                    case 2:
+                        List<StudentEntity> list = session.createQuery("from StudentEntity", StudentEntity.class).list();
+                        list.forEach(s -> System.out.println(s.getId() + " " + s.getName() + " " + s.getDepartment() + " " + s.getMarks()));
+                        break;
+                    case 3:
+                        System.out.print("Enter ID to update: ");
+                        int idU = sc.nextInt();
+                        StudentEntity stuU = session.get(StudentEntity.class, idU);
+                        System.out.print("New Marks: ");
+                        stuU.setMarks(sc.nextInt());
+                        session.merge(stuU);
+                        break;
+                    case 4:
+                        System.out.print("Enter ID to delete: ");
+                        int idD = sc.nextInt();
+                        StudentEntity stuD = session.get(StudentEntity.class, idD);
+                        session.remove(stuD);
+                        break;
+                    case 5:
+                        factory.close();
+                        System.exit(0);
+                }
+                tx.commit();
+            } catch (Exception e) {
+                if (tx != null) tx.rollback();
+                e.printStackTrace();
+            }
+        }
+    }
+}
+⚙️ hibernate.cfg.xml
+xml
+Copy code
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-configuration PUBLIC
+ "-//Hibernate/Hibernate Configuration DTD 5.0//EN"
+ "http://hibernate.sourceforge.net/hibernate-configuration-5.0.dtd">
+<hibernate-configuration>
+  <session-factory>
+    <property name="hibernate.connection.driver_class">com.mysql.cj.jdbc.Driver</property>
+    <property name="hibernate.connection.url">jdbc:mysql://localhost:3306/springdb</property>
+    <property name="hibernate.connection.username">root</property>
+    <property name="hibernate.connection.password">root</property>
+    <property name="hibernate.dialect">org.hibernate.dialect.MySQLDialect</property>
+    <property name="show_sql">true</property>
+    <property name="hbm2ddl.auto">update</property>
+  </session-factory>
+</hibernate-configuration>
+🧩 Part C — Spring + Hibernate Transaction Management
+☕ Account.java
+java
+Copy code
+package com.example.transaction;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "account")
+public class Account {
+    @Id
+    private int id;
+    private String name;
+    private double balance;
+
+    public Account() {}
+    public Account(int id, String name, double balance) {
+        this.id = id; this.name = name; this.balance = balance;
+    }
+
+    // Getters and Setters
+}
+☕ AccountDAO.java
+java
+Copy code
+package com.example.transaction;
+
+import jakarta.persistence.*;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class AccountDAO {
+    @PersistenceContext
+    private EntityManager em;
+
+    public Account find(int id) {
+        return em.find(Account.class, id);
+    }
+
+    public void update(Account acc) {
+        em.merge(acc);
+    }
+}
+☕ AccountService.java
+java
+Copy code
+package com.example.transaction;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class AccountService {
+    private final AccountDAO dao;
+
+    public AccountService(AccountDAO dao) {
+        this.dao = dao;
+    }
+
+    @Transactional
+    public void transfer(int fromId, int toId, double amount) {
+        Account from = dao.find(fromId);
+        Account to = dao.find(toId);
+
+        from.setBalance(from.getBalance() - amount);
+        to.setBalance(to.getBalance() + amount);
+
+        dao.update(from);
+        dao.update(to);
+        System.out.println("Transfer complete.");
+    }
+}
+☕ BankingApp.java
+java
+Copy code
+package com.example.transaction;
+
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import com.example.config.AppConfig;
+
+public class BankingApp {
+    public static void main(String[] args) {
+        AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext(AppConfig.class);
+        AccountService service = ctx.getBean(AccountService.class);
+        service.transfer(1, 2, 500.0);
+        ctx.close();
+    }
+}
+🗃️ SQL Setup
+sql
+Copy code
+CREATE DATABASE springdb;
+USE springdb;
+
+CREATE TABLE account (
+  id INT PRIMARY KEY,
+  name VARCHAR(50),
+  balance DOUBLE
+);
+
+INSERT INTO account VALUES (1, 'Alice', 5000), (2, 'Bob', 4000);
